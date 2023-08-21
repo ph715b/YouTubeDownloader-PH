@@ -1,4 +1,5 @@
 import os
+import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pytube import YouTube
@@ -8,12 +9,11 @@ class YouTubeDownloaderApp:
     def __init__(self, root):
         self.root = root
         self.root.title('YouTube to MP4 Converter')
-
         self.root.configure(bg = '#1E1E1E')
         # self.style.set_theme('clam')  # Choose a built-in theme like 'clam', 'default', 'vista'
 
         self.create_widgets()
-        self.video_links = {}
+        self.video_links = []
 
     def create_widgets(self):
         self.create_url_section()
@@ -56,8 +56,14 @@ class YouTubeDownloaderApp:
 
         self.video_links = [url.strip() for url in urls.split(',')]
 
+        if not self.video_links:
+            messagebox.showerror('Error', 'No valid URLs entered.')
+            return
+
         successful_downloads = 0
-        for url in self.video_links:
+    
+        def download_thread(url):
+            nonlocal successful_downloads
             try:
                 yt = YouTube(url)
                 video = yt.streams.get_highest_resolution()
@@ -65,15 +71,29 @@ class YouTubeDownloaderApp:
                 if not os.path.exists(download_path):
                     os.makedirs(download_path)
 
-                video.download(output_path=download_path)
+                    video.download(output_path=download_path)
                 successful_downloads += 1
             except Exception as e:
-                print(f"Error downloading {url}: {e}")
+                error_messages.append(f"Error downloading {url}: {e}")
 
-        if successful_downloads > 0:
-            messagebox.showinfo('Success', f'{successful_downloads} video(s) downloaded successfully!')
-        else:
-            messagebox.showerror('Error', 'No videos could be downloaded.')
+            if successful_downloads > 0:
+                messagebox.showinfo('Success', f'{successful_downloads} video(s) downloaded successfully!')
+            else:
+                messagebox.showerror('Error', 'No videos could be downloaded.')
+
+        error_messages = []
+        threads = []
+
+        for url in self.video_links:
+            thread = threading.Thread(target=download_thread, args=(url,))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        for error_message in error_messages:
+            messagebox.showerror('Error', error_message)
 
 def main():
     root = tk.Tk()
