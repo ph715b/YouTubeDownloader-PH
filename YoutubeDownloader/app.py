@@ -1,6 +1,7 @@
 import os
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from threading import Thread
 from pytube import YouTube
 
 class YouTubeDownloaderApp:
@@ -59,10 +60,18 @@ class YouTubeDownloaderApp:
             if not os.path.exists(download_path):
                 os.makedirs(download_path)
 
-            video.download(output_path=download_path)
-            messagebox.showinfo('Success', 'Video downloaded successfully!')
+            #Performing the download in a separate thread
+            download_thread = Thread(target=self.download_video_thread, args=(video, download_path))
+            download_thread.start()
         except Exception as e:
-            messagebox.showerror('Error', f'An error occurred: {e}')
+            messagebox.showerror('Error', f'An error occured: {e}')
+
+    def download_video_thread(self, video, download_path):
+        try:
+            video.download(output_path=download_path)
+            self.root.after(0, lambda: messagebox.showinfo('Success', 'Video downloaded successfully!'))
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror('Error', f'An error occurred: {e}'))
 
 def main():
     root = tk.Tk()
